@@ -3,15 +3,26 @@
 
     { create-regexp } = dependency 'prelude.RegExp'
 
+    lower-case = (.to-lower-case!)
+
+    upper-case = (.to-upper-case!)
+
+    #
+
     trim-regexp = create-regexp '^ +| +$'
 
     trim = (.replace trim-regexp, '')
 
     #
 
-    camel-case-regexp = create-regexp '[-_](.)'
+    hyphen-or-underscore = '[-_]+'
+    optional-single-char = '(.)?'
 
-    camel-case = (.replace camel-case-regexp, -> &1.to-upper-case!)
+    find-separator = create-regexp "#hyphen-or-underscore#optional-single-char"
+
+    remove-separator-capitalize-next-char = -> upper-case &1 ? ''
+
+    camel-case = (.replace find-separator, remove-separator-capitalize-next-char)
 
     #
 
@@ -21,8 +32,6 @@
     remove-leading-hyphen-regexp = create-regexp '^-'
 
     underscores-regexp = create-regexp '_+'
-
-    print = -> WScript.Echo it ; it
 
     kebab-case = (string) ->
 
@@ -37,5 +46,5 @@
 
     {
       trim,
-      camel-case, kebab-case
+      lower-case, upper-case, camel-case, kebab-case
     }

@@ -1,10 +1,11 @@
 
   do ->
 
-    flags = global: 'g'
+    regexp-flags = global: 'g', ignore-case: 'i', multiline: 'm'
 
-    create-regexp = (pattern, flag = flags.global) -> new RegExp pattern, flag
+    create-regexp = (expression, flags = regexp-flags.global) -> new RegExp expression, flags
 
     {
+      regexp-flags,
       create-regexp
     }

@@ -7,13 +7,13 @@
 
     object-member-names = (object) -> [ (member-name) for member-name of object ]
 
-    argument-with-value = (argument-name, argument-value) ->
+    argument-as-string = (argument-name, argument-value) ->
 
       "Argument '#argument-name' with value #{ typed-value-as-string argument-value }"
 
     argument-must-message = (argument-name, argument-value, requirement) ->
 
-      "#{ argument-with-value argument-name, argument-value } must #requirement"
+      "#{ argument-as-string argument-name, argument-value } must #requirement"
 
     name-and-value-from-argument = (argument) ->
 
@@ -33,7 +33,7 @@
 
       { argument-name, argument-value } = name-and-value-from-argument argument
 
-      create-error "#{ argument-with-value argument-name, argument-value } #message.", cause
+      create-error "#{ argument-as-string argument-name, argument-value } #message.", cause
 
     create-argument-requirement-error = (argument, requirement, cause) ->
 
@@ -42,6 +42,8 @@
       create-error "#{ argument-must-message argument-name, argument-value, requirement }.", cause
 
     create-argument-type-error = (argument, type, cause) -> create-argument-requirement-error argument, "be #type", cause
+
+    argument-with-value = (argument) -> argument |> name-and-value-from-argument |> argument-as-string
 
     {
       create-argument-error,

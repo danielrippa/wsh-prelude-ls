@@ -16,19 +16,16 @@ do ->
 
         return ..slice start, end
 
+    value-constructor-name = (value, typetag) -> constructor-name = object-constructor-name value ; if constructor-name? then constructor-name else typetag
+
     value-typename = (value) ->
 
       typetag = value-typetag value
 
       switch typetag
 
-        | 'Object' =>
-
-          constructor-name = object-constructor-name value
-
-          if constructor-name? then constructor-name else typetag
-
-        | 'Error' => value.name
+        | 'Object' => value-constructor-name value, typetag
+        | 'Error'  => value.name
 
         else typetag
 

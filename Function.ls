@@ -13,10 +13,7 @@
 
         names = ..slice start + 1, end
 
-      if (names.index-of ',') isnt -1
-        names |> (/ ',') |> map _ , trim
-      else
-        [ trim names ]
+      if (names.index-of ',') isnt -1 then names |> (/ ',') |> map _ , trim else [ trim names ]
 
     {
       function-parameter-names
