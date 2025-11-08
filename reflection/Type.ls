@@ -20,40 +20,39 @@
 
     any-of = (tokens) -> prefix = (if tokens.length is 1 then '' else 'any of ') ; "#{prefix}#{ csv tokens }"
 
-    with-descriptor = (message, descriptor, kind = 'type') -> "#{message} as per #{kind} type-descriptor '#{descriptor}'"
-
     #
 
-    count-error = (subject, subject-type, expected, actual, strict, descriptor) -> qualifier = if strict then '' else 'at least ' ; arg-error {subject}, with-descriptor "#subject-type has #actual items. It must have #qualifier#expected", descriptor
+    count-error = (subject, expected, actual, strict, descriptor) ->
+      qualifier = if strict then '' else 'at least '
+      arg-req {subject}, "have #qualifier#expected items, but has #actual as per type type-descriptor '#descriptor'"
 
-    tuple-size-error = (tuple, expected, elements-count, strict, descriptor) -> count-error tuple, 'Tuple', expected, elements-count, strict, descriptor
+    tuple-size-error = (tuple, expected, elements-count, strict, descriptor) -> count-error tuple, expected, elements-count, strict, descriptor
 
-    object-member-count-error = (object, expected, members-count, strict, descriptor) -> count-error object, 'Object', expected, members-count, strict, descriptor
+    object-member-count-error = (object, expected, members-count, strict, descriptor) -> count-error object, expected, members-count, strict, descriptor
 
-    function-parameter-count-error = (fn, expected, actual, strict, descriptor) -> count-error fn, 'Function', expected, actual, strict, descriptor
+    function-parameter-count-error = (fn, expected, actual, strict, descriptor) -> count-error fn, expected, actual, strict, descriptor
 
     list-item-type-mismatch-error = (array, types, descriptor, index) ->
-
-      item = array[ index ] ; arg-error {item} "at index #index must be #{ any-of types } as per list type descriptor '#descriptor'"
+      arg-req {array}, "have item at index #index of type #{ any-of types } as per list type descriptor '#descriptor'"
 
     tuple-element-type-mismatch-error = (tuple, types, descriptor, element-index, type-index) ->
 
-      token = types[ type-index ] ; types = token-as-types token ; element = tuple[ element-index ]
-      arg-error {element}, "at index #element-index must be #{ any-of types } as per tuple type descriptor '#descriptor'"
+      token = types[ type-index ] ; types = token-as-types token
+      arg-req {tuple}, "have element at index #element-index of type #{ any-of types } as per tuple type descriptor '#descriptor'"
 
     unexpected-trailing-elements-error = (tuple, descriptor, element-index, was-prev-ellipsis) ->
 
       unexpected-elements = tuple |> (.slice element-index) |> map _ , typed-value-as-string |> csv
-      suffix = if was-prev-ellipsis then " after its variadic '#ellipsis' part" else ''
+      suffix = if was-prev-ellipsis then " after its variadic '#{ellipsis}' part" else ''
 
-      arg-error {tuple}, with-descriptor "has trailing elements #unexpected-elements not defined#{suffix}", descriptor, 'tuple'
+      arg-error {tuple}, "has unexpected trailing elements: #unexpected-elements not defined#{suffix} as per tuple type-descriptor '#descriptor'"
 
     missing-mandatory-types-error = (tuple, descriptor, missing-mandatory-types) ->
 
       message = if missing-mandatory-types.length is 0 then '' else " #{ csv missing-mandatory-types }"
-      arg-error {tuple}, with-descriptor "is missing mandatory elements#message", descriptor, 'tuple'
+      arg-error {tuple}, "is missing mandatory elements#message as per tuple type-descriptor '#descriptor'"
 
-    missing-member-error = (object, member-name, descriptor) -> arg-error {object}, with-descriptor "is missing member '#{ kebab-case member-name }'", descriptor, 'object'
+    missing-member-error = (object, member-name, descriptor) -> arg-error {object}, "is missing member '#{ kebab-case member-name }' as per object type-descriptor '#descriptor'"
 
     tuple-too-short-error = (tuple, types, descriptor, type-index) ->
 
@@ -78,9 +77,7 @@
 
     valid-tuple-size = (tuple, strict, elements-count, types, descriptor) ->
 
-      if strict
-        throw tuple-size-error tuple, types.length, elements-count, strict, descriptor if elements-count isnt types.length
-      else
+      unless strict
         non-ellipsis-count = filter types, (!= ellipsis) .length
         throw tuple-size-error tuple, non-ellipsis-count, elements-count, strict, descriptor if elements-count < non-ellipsis-count
 
@@ -93,11 +90,11 @@
 
     union-type = (value, { types-map }, descriptor) ->
 
-      throw argtype {value}, with-descriptor "#{ any-of object-member-names types-map }", descriptor unless value `matches-any` types-map ; value
+      throw argtype {value}, "#{ any-of object-member-names types-map } as per type type-descriptor '#descriptor'" unless value `matches-any` types-map ; value
 
     list-type = (list, { types-map }, descriptor) ->
 
-      throw argtype {list}, with-descriptor "Array", descriptor unless is-array list
+      throw argtype {list}, "Array as per type type-descriptor '#descriptor'" unless is-array list
 
       for item, index in list => throw list-item-type-mismatch-error list, (object-member-names types-map), descriptor, index unless item `matches-any` types-map
 
@@ -105,7 +102,7 @@
 
     tuple-type = (tuple, { types }, descriptor) ->
 
-      throw argtype {tuple}, with-descriptor "Array", descriptor unless is-array tuple
+      throw argtype {tuple}, "Array as per type type-descriptor '#descriptor'" unless is-array tuple
 
       strict = ellipsis not in types ; elements-count = tuple.length ; types-count = types.length ; valid-tuple-size tuple, strict, elements-count, types, descriptor
 
@@ -141,7 +138,7 @@
 
     object-type = (object, { members, strict }, descriptor) ->
 
-      throw argtype {value}, with-descriptor "Object", descriptor, 'object' unless is-object object
+      throw argtype {object}, "Object as per object type-descriptor '#descriptor'" unless is-object object
 
       member-names = [ (kebab-case member-name) for member-name of object ] ; members-count = member-names.length
       tokens-count = members.length
@@ -163,11 +160,11 @@
 
         if types-map isnt null
 
-          member-value = object[ camel-case name ] ; throw arg-error {object}, with-descriptor "must have member '#{ kebab-case name }' with type #{ any-of object-member-names types-map }", descriptor, 'object' unless member-value `matches-any` types-map
+          member-value = object[ camel-case name ] ; throw arg-req {object}, "have member '#{ kebab-case name }' of type #{ any-of object-member-names types-map } as per object type-descriptor '#descriptor'" unless member-value `matches-any` types-map
 
         unmatched-members = filter unmatched-members, (!= name)
 
-      if strict => throw arg-error {object}, with-descriptor "has unmatched member(s) #{ csv unmatched-members } but expected #{ anonymous-token-count }", descriptor, 'object' if unmatched-members.length isnt anonymous-token-count
+      if strict => throw arg-req {object}, "have #{ anonymous-token-count } anonymous members, but has unmatched member(s) #{ csv unmatched-members } as per object type-descriptor '#descriptor'" if unmatched-members.length isnt anonymous-token-count
 
       object
 
@@ -188,14 +185,14 @@
           token-index++ ; if param-index < parameters-count => param-index++
           continue
 
-        throw arg-error {fn}, with-descriptor "is missing parameter for token: #{token.name}", descriptor if param-index >= parameters-count
+        throw arg-error {fn}, "is missing parameter for token: #{token.name} as per type type-descriptor '#descriptor'" if param-index >= parameters-count
 
         parameter-name = parameter-names[ param-index ]
-        throw arg-error {fn}, "Parameter name mismatch at index #{param-index}. Expected '#{token.name}' but got '#{parameter-name}'" if (camel-case token.name) isnt parameter-name
+        throw arg-error {fn}, "Parameter name mismatch at index #{param-index}. Expected '#{token.name}' but got '#{parameter-name}' as per type type-descriptor '#descriptor'" if (camel-case token.name) isnt parameter-name
 
         param-index++ ; token-index++
 
-      throw arg-error {fn}, with-descriptor "has more parameters than expected", descriptor if strict and param-index < parameters-count
+      throw arg-error {fn}, "has more parameters than expected as per type type-descriptor '#descriptor'" if strict and param-index < parameters-count
 
       fn
 

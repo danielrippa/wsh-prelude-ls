@@ -26,7 +26,7 @@
 
         | -1 => name: token, types-map: null
 
-        else [ name, type-token ] = token / ':' ; names-and-types-map name, type-token
+        else [ name, type-token ] = token / ':' ; name-and-types-map name, type-token
 
     #
 
