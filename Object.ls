@@ -1,23 +1,34 @@
 
   do ->
 
-    { is-object, is-array } = dependency 'prelude.reflection.IsA'
-    { map } = dependency 'prelude.Array'
-    { camel-case } = dependency 'prelude.String'
+    { is-object, is-function } = dependency 'prelude.Type'
+    { is-array } = dependency 'prelude.TypeTag'
 
-    object-member-names = (object) -> return null unless is-object object ; [ (member-name) for member-name of object ]
+    object-member-names = (object) ->
 
-    object-missing-members = (object, member-names) ->
+      return null unless is-object object
+      [ member-name for member-name of object ]
 
-      return null unless is-object objec ; return null unless is-array member-names
+    object-member-values = (object) ->
 
-      required-member-names = map member-names, camel-case
+      return null unless is-object object
+      [ member-value for member-name, member-value of object ]
 
-      missing-member-names = []
-      for member-name of object => unless member-name in required-member-names => missing-member-names.push member-name
+    constructor-name-start-and-end = (constructor-string) -> [ (constructor-string.index-of char) for char in [ ' ', '(' ] ]
 
-      missing-member-names
+    object-constructor-name = (object) ->
+
+      return null unless is-object object
+
+      [ constructor ] = object ; return null unless is-function constructor
+
+      constructor.to-string!
+
+        [ start, end ] = constructor-name-start-and-end ..
+
+        return ..slice start + 1, end
 
     {
-      object-member-names, object-missing-members
+      object-member-names, object-member-values,
+      object-constructor-name
     }

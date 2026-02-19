@@ -1,50 +1,57 @@
 
   do ->
 
-    { create-regexp } = dependency 'prelude.RegExp'
+    { is-string, is-number } = dependency 'prelude.Type'
 
-    lower-case = (.to-lower-case!)
+    string-size = (string) ->
 
-    upper-case = (.to-upper-case!)
+      return null unless is-string string
+      string |> (.length)
 
-    #
+    string-is-empty = (string) ->
 
-    trim-regexp = create-regexp '^ +| +$'
+      return null unless is-string string
+      (string-size string) is 0
 
-    trim = (.replace trim-regexp, '')
+    string-isnt-empty = (string) ->
 
-    #
+      return null unless is-string string
+      not string-is-empty string
 
-    hyphen-or-underscore = '[-_]+'
-    optional-single-char = '(.)?'
+    string-repeat = (string, count) ->
 
-    find-separator = create-regexp "#hyphen-or-underscore#optional-single-char"
+      return null unless (is-string) and (is-number count)
+      new Array count + 1 |> (.join string)
 
-    remove-separator-capitalize-next-char = -> upper-case &1 ? ''
+    string-starts-with = (haystack, needle) ->
 
-    camel-case = (.replace find-separator, remove-separator-capitalize-next-char)
+      return null unless (is-string haystack) and (is-string needle)
+      haystack |> (.index-of needle) |> (== 0)
 
-    #
+    string-ends-with = (haystack, needle) ->
 
-    add-hyphen-before-uppercase-regexp = create-regexp '([A-Z])'
-    replace-spaces-underscores-regexp  = create-regexp '[\s_]+'
+      return null unless (is-string haystack) and (is-string needle)
+      haystack |> (.last-index-of needle) |> (!= -1)
 
-    remove-leading-hyphen-regexp = create-regexp '^-'
+    string-contains = (haystack, needle) ->
 
-    underscores-regexp = create-regexp '_+'
+      return null unless (is-string haystack) and (is-string needle)
+      haystack |> (.index-of needle) |> (!= -1)
 
-    kebab-case = (string) ->
+    upper-case = (string) ->
 
-      string
+      return null unless is-string string
+      string |> (.to-upper-case!)
 
-        |> (.replace add-hyphen-before-uppercase-regexp, '-$1')
-        |> (.to-lower-case!)
-        |> (/ ' ')
-        |> (* '-')
-        |> (.replace underscores-regexp, '-')
-        |> (.replace remove-leading-hyphen-regexp, '')
+    lower-case = (string) ->
+
+      return null unless is-string string
+      string |> (.to-lower-case!)
 
     {
-      trim,
-      lower-case, upper-case, camel-case, kebab-case
+      string-size,
+      string-is-empty, string-isnt-empty,
+      string-repeat,
+      string-starts-with, string-ends-with, string-contains,
+      upper-case, lower-case
     }
