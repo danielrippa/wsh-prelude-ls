@@ -31,7 +31,7 @@
       for item, index in array => accumulator = fn accumulator, item, index, array
       accumulator
 
-    find-array-index = (array, predicate-fn) ->
+    array-item-index = (array, predicate-fn) ->
 
       return null unless (is-array array) and (is-function predicate-fn)
 
@@ -40,11 +40,26 @@
 
       -1
 
+    any-array-item-matches = (array, predicate-fn) ->
+
+      index = array `array-item-index` predicate-fn ; return null if index is null
+      index isnt -1
+
+    array-sort = (array, compare-fn) ->
+
+      return null unless is-array array
+      if compare-fn isnt void
+        return null unless is-function compare-fn
+        return array.slice 0 |> (.sort compare-fn)
+      array.slice 0 |> (.sort!)
+
     {
       array-size,
       array-is-empty, array-isnt-empty,
       map-array-items, keep-array-items, drop-array-items,
       array-as-string,
       fold-array-items,
-      find-array-index
+      array-item-index,
+      any-array-item-matches,
+      array-sort
     }

@@ -1,7 +1,11 @@
 
   do ->
 
-    char = -> String.from-char-code it
+    { is-number } = dependency 'prelude.Type'
+
+    char = (code) -> return null unless is-number code ; String.from-char-code code
+
+    #
 
     c0-control-codes = { [ name, char-code ] for name, char-code in <[ nul soh stx etx eot enq ack bel bs ht lf vt ff cr so si dle dc1 dc2 dc3 dc4 nak syn etb can em sub esc fs gs rs us ]> }
 

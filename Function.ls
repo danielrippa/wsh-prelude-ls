@@ -34,8 +34,32 @@
 
     function-as-string = (fn) -> return null unless is-function fn ; decompose-function fn |> (.function-as-string)
 
+    call-function-until = (is-done-fn, step-fn, initial-state) ->
+
+      for fn in [ is-done-fn, step-fn ] => return null unless is-function fn
+
+      state = initial-state
+      until is-done-fn state => state = step-fn state
+      state
+
+    call-function-while = (should-continue-fn, step-fn, initial-state) ->
+
+      for fn in [ should-continue-fn, step-fn ] => return null unless is-function fn
+
+      state = initial-state
+      while shuld-continue-fn state => state = step-fn state
+      state
+
+    call-function = (step-fn) ->
+
+      return null unless is-function step-fn
+
+      until: (is-done-fn) -> (initial-state) -> call-function-until is-done-fn, step-fn, initial-state
+      while: (should-continue-fn) -> (step-fn) -> (initial-value) -> call-function-while should-continue-fn, step-fn, initial-value
+
     {
       decompose-function,
       function-parameter-names,
-      function-as-string
+      function-as-string,
+      call-function
     }

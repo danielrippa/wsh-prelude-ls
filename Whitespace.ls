@@ -10,7 +10,7 @@
     leading-ws  = starts-with s-whitespace
     trailing-ws = ends-with   s-whitespace
 
-    trim-ws-pattern = choice [ leading-ws, trailing-ws ]
+    trim-ws-pattern = choice leading-ws, trailing-ws
 
     trim-whitespace = string-replace-with trim-ws-pattern, '', yes
 

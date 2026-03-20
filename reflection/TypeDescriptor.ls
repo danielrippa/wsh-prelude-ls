@@ -1,157 +1,159 @@
 
+
   do ->
 
-    { create-argument-type-error: argument-type-error, create-argument-error: argument-error } = dependency 'prelude.error.Argument'
-    { is-string } = dependency 'prelude.Type'
-    { string-contains, string-repeat } = dependency 'prelude.String'
-    { string-split-with } = dependency 'prelude.RegExp'
+    { create-argument-error: arg, create-argument-requirement-error: arg-must } = dependency 'prelude.error.Argument'
     { trim-whitespace } = dependency 'prelude.Whitespace'
+    { is-string } = dependency 'prelude.Type'
+    { string-split-with } = dependency 'prelude.RegExp'
+    { drop-array-items, array-size, map-array-items: map } = dependency 'prelude.Array'
     { punctuation-chars } = dependency 'prelude.Char'
-    { object-member-names } = dependency 'prelude.Object'
-    { array-size, drop-array-items } = dependency 'prelude.Array'
+    { string-starts-with: starts-with, string-contains } = dependency 'prelude.String'
+    { camel-case } = dependency 'prelude.Case'
 
-    descriptor-kinds =
+    { period, question: wildcard, asterisk: star, space, colon, pipe } = punctuation-chars
 
-      '<>': 'type'
-      '[]': 'array'
-      '{}': 'object'
-      '()': 'function'
+    drop-empty-strings = _ `drop-array-items` (== '')
 
-    descriptor-kind-keys = object-member-names descriptor-kinds
+    ellipsis = "#period" * 3
 
-    #
-
-    { period, pipe, space, colon } = punctuation-chars
-
-    ellipsis = string-repeat period, 3 ; is-ellipsis = (== ellipsis)
-
-    contains-colon = -> string-contains it, colon
-
-    is-not-empty = (str) -> str isnt ''
-
-    split-by-pipe = string-split-with pipe
-    token-as-types = (token) -> token |> split-by-pipe |> drop-array-items _, (== '')
     string-as-tokens = string-split-with space
+    split-by-pipe = string-split-with pipe
     split-by-colon = string-split-with colon
 
-    #
+    contains-colon = -> it `string-contains` colon
 
-    types-map = (descriptors) -> { [ type, yes ] for type in descriptors }
-
-    types-from-token = (token) -> types-map token-as-types token
-
-    name-and-types-map = (name, token) -> { name, types-map: types-from-token token }
-
-    object-member = (token) ->
-
-      if token `string-contains` colon
-        then [ name, type-token ] = split-by-colon token ; throw argument-error {token}, "is invalid. Object member cannot have empty type after colon." if type-token is '' ; name-and-types-map name, type-token
-        else name: token, types-map: null
-
-    function-param = (token) ->
-
-      throw argument-error {token}, "is invalid. Function parameters cannot include type annotations." if token `string-contains` colon
-
-      name: token, types-map: null
+    is-special-token = (token) -> token is ellipsis or token is wildcard
 
     #
 
-    any-descriptor = kind: 'any'
+    types-map = (types) -> { [ type, yes ] for type in types }
 
-    invalid-list-syntax-message = "is invalid. Array descriptor syntax is '[*]' for any type or '[*:UnionType]' for specific types."
+    token-as-union-types = -> it |> split-by-pipe |> drop-empty-strings
 
-    parse-type-token = ([ token ]) ->
+    token-as-types-map = -> it |> token-as-union-types |> types-map
 
-      throw argument-error {descriptor: '<>'}, "is invalid. Type descriptor cannot be empty." if token is void
+    get-named-types-descriptor = (kind, tokens, parse-item) ->
 
-      switch token
+      items = map tokens, parse-item
 
-        | '?' => any-descriptor
-        else
-          types = token-as-types token
-          all-types = split-by-pipe token
-          throw argument-error {descriptor: "<#token>"}, "is invalid. Type descriptor contains empty type in union." if (array-size all-types) > (array-size types)
-          throw argument-error {descriptor: "<#token>"}, "is invalid. Type descriptor must contain at least one type." if (array-size types) is 0
-          kind: 'type', types-map: types-map types
+      { kind, descriptor-tokens: items }
+
+    chars-as-tokens = (chars) -> chars * '' |> trim-whitespace |> string-as-tokens |> drop-empty-strings
+
+    build-names-map = (name) -> { [ (camel-case name-variant), yes ] for name-variant in (split-by-pipe name) when name-variant isnt '' }
 
     #
 
-    tuple-descriptor = (types) -> kind: 'tuple', types: types
+    parse-type-tokens = (tokens, descriptor) ->
 
-    list-descriptor = (types, descriptor) ->
+      throw {descriptor} `arg-must` "specify a UnionType e.g. <Number|Void> or <?> for any type" unless (array-size tokens) is 1
 
-      throw argument-error {descriptor}, invalid-list-syntax-message unless contains-colon types
+      [ token ] = tokens
 
-      [ initial, token ] = split-by-colon types
+      if token is wildcard
+        then kind: 'any'
+        else kind: 'type', types-map: token-as-types-map token
 
-      switch initial
+    #
 
-        | '*' =>
-          throw argument-error {descriptor}, invalid-list-syntax-message if token is ''
-          kind: 'list', types-map: types-from-token token
-        else throw argument-error {descriptor}, invalid-list-syntax-message
+    tuple-element = (token) ->
+      { token, types-map: if is-special-token token then void else token-as-types-map token }
 
-    parse-array-tokens = (type-tokens, descriptor) ->
+    tuple-descriptor = (tokens) -> kind: 'tuple', element-types-map: map tokens, tuple-element
 
-      switch array-size type-tokens
+    list-descriptor = (type, descriptor) ->
 
-        | 0 => tuple-descriptor type-tokens
+      return kind: 'list' if type is star
+
+      [ initial, union-type ] = type |> split-by-colon
+
+      throw {descriptor} `arg` "is invalid. Array descriptor syntax is '[*]' for items of any type or '[*:UnionType]' for specific types" \
+        unless initial is star and union-type isnt ''
+
+      kind: 'list', types-map: token-as-types-map union-type
+
+    parse-array-tokens = (tokens, descriptor) ->
+
+      switch array-size tokens
+
+        | 0 => tuple-descriptor tokens
         | 1 =>
-          [ token ] = type-tokens
 
-          switch
+          [ token ] = tokens
 
-            | is-ellipsis token => tuple-descriptor type-tokens
-            | contains-colon token => list-descriptor token, descriptor
-            else tuple-descriptor type-tokens
+          if token `starts-with` star
+            then list-descriptor token, descriptor
+            else tuple-descriptor tokens
 
-        else tuple-descriptor type-tokens
-
-    #
-
-    named-items-descriptor = (kind, items-name, tokens, item-parser) ->
-
-      items = [ (item-parser token) for token in tokens ]
-      item-names = [ (item.name) for item in items ]
-
-      { kind, (items-name): items, strict: ellipsis not in item-names }
-
-    parse-object-tokens = (tokens) -> named-items-descriptor 'object', 'members', tokens, object-member
+        else tuple-descriptor tokens
 
     #
 
-    parse-function-tokens = (tokens) -> named-items-descriptor 'function', 'params', tokens, function-param
+    parse-object-member = (name) ->
+
+      type-token = void
+
+      if name |> contains-colon
+
+        then
+
+          [ name, type-token ] = split-by-colon name
+
+          throw {name} `arg` "is invalid. Object member cannot have empty type after colon" if type-token is ''
+
+      { name, type-token }
+
+    parse-object-tokens = (tokens, descriptor) ->
+
+      get-named-types-descriptor 'object', tokens, (token) ->
+
+        { name, type-token } = parse-object-member token
+        types-map = if type-token isnt void then token-as-types-map type-token else void
+
+        { token: name, types-map, names-map: build-names-map name }
 
     #
 
-    invalid-type-descriptor-message = "must be surrounded by any of #{ descriptor-kind-keys * ', ' }"
+    parse-function-tokens = (tokens, descriptor) ->
 
-    chars-as-tokens = (chars) -> chars |> (* '') |> trim-whitespace |> string-as-tokens |> drop-array-items _ , (== '')
+      get-named-types-descriptor 'function', tokens, (token) ->
 
-    type-descriptor = (descriptor) ->
+        throw {token} `arg` "is invalid. Function parameters cannot include type annotations" if token |> contains-colon
 
-      throw argument-error {descriptor}, "must be a String." unless is-string descriptor
+        { token, types-map: void, names-map: build-names-map token }
 
-      trimmed = trim-whitespace descriptor
+    #
 
-      throw argument-error {descriptor}, "cannot be empty" if trimmed is ''
+    descriptor-kind-keys = <[ <> [] {} () ]> ; descriptor-names = <[ type array object function ]>
 
-      [ first, ...chars, last ] = trimmed / ''
+    descriptor-kinds = { [ descriptor-kind-keys[index], descriptor-name ] for descriptor-name, index in descriptor-names }
+
+    cached-type-descriptors = {} ; type-descriptor = (descriptor) ->
+
+      throw {descriptor} `arg-must` "be String" unless is-string descriptor
+      descriptor = trim-whitespace descriptor
+      throw {descriptor} `arg` "cannot be empty" if descriptor is ''
+
+      cached-type-descriptor = cached-type-descriptors[ descriptor ] => return .. unless .. is void
+
+      [ first, ...chars, last ] = descriptor / ''
 
       descriptor-kind = descriptor-kinds[ "#first#last" ]
 
-      throw argument-error {descriptor}, invalid-type-descriptor-message if descriptor-kind is void
+      throw {descriptor} `arg-must` "be surrounded by any of #{ descriptor-kind-keys * ', ' }" \
+        if descriptor-kind is void
 
-      parse-tokens-fn = switch descriptor-kind
+      parse = switch descriptor-kind
 
-        | 'type' => parse-type-token
-        | 'array' => parse-array-tokens
-        | 'object' => parse-object-tokens
+        | 'type'     => parse-type-tokens
+        | 'array'    => parse-array-tokens
+        | 'object'   => parse-object-tokens
         | 'function' => parse-function-tokens
 
-      parse-tokens-fn (chars-as-tokens chars), descriptor
+      parse (chars |> chars-as-tokens), descriptor => cached-type-descriptors[ descriptor ] := ..
 
     {
-      type-descriptor
+      type-descriptor,
+      ellipsis, wildcard, is-special-token
     }
-

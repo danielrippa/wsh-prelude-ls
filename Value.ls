@@ -31,6 +31,8 @@
 
       [ (member-as-string member-name, value-as-string object[ member-name ]) for member-name of object ] |> as-object
 
+    boxed-primitive-typenames = { Number: yes, String: yes, Boolean: yes }
+
     value-as-string = (value) ->
 
       switch value-typetag value
@@ -38,12 +40,17 @@
         | 'Void' => 'void'
         | 'Null' => 'null'
 
-        | 'String' => single-quotes value
+        | 'String' => single-quotes "#value"
         | 'Function' => function-as-string value
 
         | 'Array' => array-as-string value
 
-        | 'Object', 'Error' => object-as-string value
+        | 'Object', 'Error' =>
+
+          typename = value-typename value
+          if boxed-primitive-typenames[ typename ] is yes
+            then "#value"
+            else object-as-string value
 
         else "#value"
 

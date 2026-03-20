@@ -20,7 +20,7 @@
 
     string-repeat = (string, count) ->
 
-      return null unless (is-string) and (is-number count)
+      return null unless (is-string string) and (is-number count)
       new Array count + 1 |> (.join string)
 
     string-starts-with = (haystack, needle) ->
@@ -31,7 +31,8 @@
     string-ends-with = (haystack, needle) ->
 
       return null unless (is-string haystack) and (is-string needle)
-      haystack |> (.last-index-of needle) |> (!= -1)
+      expected-index = (haystack.length) - (needle.length)
+      haystack |> (.last-index-of needle) |> (== expected-index)
 
     string-contains = (haystack, needle) ->
 
